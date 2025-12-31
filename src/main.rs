@@ -51,9 +51,9 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Run a harness command template that includes $item
+    /// Run a harness command template that includes {item}
     Run {
-        /// Harness command template (use $item to insert the prompt)
+        /// Harness command template (use {item} to insert the prompt)
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         harness_cmd: Vec<String>,
     },
@@ -191,7 +191,7 @@ fn spawn_tmux(cli: &Cli, harness_cmd: &[String], prompts: &[String]) -> Result<(
 
 fn build_shell_command(harness_cmd: &[String], prompt: &str) -> Result<String> {
     if !contains_item_token(harness_cmd) {
-        bail!("harness command must include $item (or {{item}}/{{${{item}}}}); use single quotes or escape $ if your shell expands it");
+        bail!("harness command must include {{item}}");
     }
     let mut parts = Vec::with_capacity(harness_cmd.len());
     for arg in harness_cmd {
@@ -283,7 +283,7 @@ fn replace_item_token(arg: &str, prompt: &str) -> String {
     out
 }
 
-const ITEM_TOKENS: [&str; 3] = ["$item", "{item}", "${item}"];
+const ITEM_TOKENS: [&str; 1] = ["{item}"];
 
 fn tmux_has_session(tmux: &str, session: &str) -> Result<bool> {
     let status = Command::new(tmux)

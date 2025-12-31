@@ -10,15 +10,27 @@ cargo install --path .
 
 ## Usage
 
+General form:
+
 ```bash
+spawn --file <tasks.md> run -- "<harness command with {item}>"
+```
+
+Examples:
+
+```bash
+# Codex example
 spawn --file todos.md run -- "codex --model \"gpt-5.2\" -c \"model_reasoning_effort=xhigh\" -- {item}"
+
+# Any CLI that accepts a prompt as a trailing argument
+spawn --file tasks.md run -- "my-agent --temperature 0.2 -- {item}"
+
+# You can also pass a fully split command instead of a single quoted string
+spawn --file tasks.md run -- my-agent --temperature 0.2 -- {item}
 ```
 
 ### Required placeholder
-Your harness command must include one of:
-- `$item`
-- `{item}`
-- `${item}`
+Your harness command must include `{item}`.
 
 The placeholder is replaced with the full todo block (including indented subitems).
 
@@ -40,11 +52,7 @@ If you wrap the whole harness command in double quotes, you must escape any inne
 spawn --file todos.md run -- "codex --model \"gpt-5.2\" -c \"model_reasoning_effort=xhigh\" -- {item}"
 ```
 
-If you want to use `$item` in double quotes, escape it so your shell doesn’t expand it:
-
-```bash
-spawn --file todos.md run -- "codex --model gpt-5.2 -c model_reasoning_effort=xhigh -- \$item"
-```
+Use `{item}` to avoid shell expansion issues.
 
 ## Example markdown
 
