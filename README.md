@@ -52,7 +52,7 @@ If you wrap the whole harness command in double quotes, you must escape any inne
 spawn --file todos.md run -- "codex --model \"gpt-5.2\" -c \"model_reasoning_effort=xhigh\" -- {item}"
 ```
 
-Use `{item}` to avoid shell expansion issues.
+Use `{item}` as the placeholder in your harness command.
 
 ## Example markdown
 
