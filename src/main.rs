@@ -92,12 +92,20 @@ fn main() -> Result<()> {
             return Ok(());
         }
     }
-    spawn_tmux(&cli, &harness_cmd, &prompts)?;
+    let used_existing_session = spawn_tmux(&cli, &harness_cmd, &prompts)?;
 
     if cli.attach {
         run_tmux(&cli.tmux_bin, ["attach", "-t", cli.session.as_str()])?;
     } else {
-        println!("tmux session '{}' created with {} window(s).", cli.session, prompts.len());
+        if used_existing_session {
+            println!(
+                "tmux session '{}' already existed; added {} window(s).",
+                cli.session,
+                prompts.len()
+            );
+        } else {
+            println!("tmux session '{}' created with {} window(s).", cli.session, prompts.len());
+        }
         println!("attach with: tmux attach -t {}", cli.session);
     }
 
@@ -160,23 +168,34 @@ fn build_prompt(item: &str, prefix: Option<&str>, suffix: Option<&str>) -> Strin
     parts.join("\n\n")
 }
 
-fn spawn_tmux(cli: &Cli, harness_cmd: &[String], prompts: &[String]) -> Result<()> {
+fn spawn_tmux(cli: &Cli, harness_cmd: &[String], prompts: &[String]) -> Result<bool> {
     let session = cli.session.as_str();
     let tmux = cli.tmux_bin.as_str();
 
-    if tmux_has_session(tmux, session)? {
+    let mut created_session = false;
+    let mut used_existing_session = false;
+    let start_index = if tmux_has_session(tmux, session)? {
         if cli.replace {
             run_tmux(tmux, ["kill-session", "-t", session])?;
+            run_tmux(tmux, ["new-session", "-d", "-s", session, "-n", "1"])?;
+            created_session = true;
+            1
         } else {
-            bail!("tmux session '{}' already exists (use --replace to overwrite)", session);
+            used_existing_session = true;
+            tmux_next_window_index(tmux, session)?
         }
-    }
-
-    run_tmux(tmux, ["new-session", "-d", "-s", session, "-n", "1"])?;
+    } else {
+        run_tmux(tmux, ["new-session", "-d", "-s", session, "-n", "1"])?;
+        created_session = true;
+        1
+    };
 
     for (idx, prompt) in prompts.iter().enumerate() {
-        let window_name = format!("{}", idx + 1);
-        if idx > 0 {
+        let window_number = start_index + idx as u32;
+        let window_name = format!("{}", window_number);
+        if created_session && idx == 0 {
+            // use the initial window created with the session
+        } else {
             run_tmux(tmux, ["new-window", "-t", session, "-n", &window_name])?;
         }
 
@@ -186,7 +205,7 @@ fn spawn_tmux(cli: &Cli, harness_cmd: &[String], prompts: &[String]) -> Result<(
         run_tmux(tmux, ["send-keys", "-t", &target, "C-m"])?;
     }
 
-    Ok(())
+    Ok(used_existing_session)
 }
 
 fn build_shell_command(harness_cmd: &[String], prompt: &str) -> Result<String> {
@@ -294,6 +313,24 @@ fn tmux_has_session(tmux: &str, session: &str) -> Result<bool> {
         Ok(_) => Ok(false),
         Err(e) => Err(e).with_context(|| format!("failed to run {}", tmux)),
     }
+}
+
+fn tmux_next_window_index(tmux: &str, session: &str) -> Result<u32> {
+    let output = Command::new(tmux)
+        .args(["list-windows", "-t", session, "-F", "#I"])
+        .output()
+        .with_context(|| format!("failed to run {}", tmux))?;
+    if !output.status.success() {
+        bail!("tmux command failed: {}", tmux);
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut max_index: Option<u32> = None;
+    for line in stdout.lines() {
+        if let Ok(num) = line.trim().parse::<u32>() {
+            max_index = Some(max_index.map_or(num, |cur| cur.max(num)));
+        }
+    }
+    Ok(max_index.unwrap_or(0).saturating_add(1))
 }
 
 fn run_tmux<I, S>(tmux: &str, args: I) -> Result<()>
