@@ -7,7 +7,11 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[derive(Parser, Debug)]
-#[command(name = "spawn", version, about = "Spawn tmux sessions from markdown todos")]
+#[command(
+    name = "spawn",
+    version,
+    about = "Spawn tmux sessions from markdown todos"
+)]
 struct Cli {
     /// Path to markdown file containing todos
     #[arg(short, long, value_name = "FILE")]
@@ -104,7 +108,11 @@ fn main() -> Result<()> {
                 prompts.len()
             );
         } else {
-            println!("tmux session '{}' created with {} window(s).", cli.session, prompts.len());
+            println!(
+                "tmux session '{}' created with {} window(s).",
+                cli.session,
+                prompts.len()
+            );
         }
         println!("attach with: tmux attach -t {}", cli.session);
     }
@@ -224,7 +232,9 @@ fn shell_escape(input: &str) -> String {
     if input.is_empty() {
         return "''".to_string();
     }
-    if !input.contains([' ', '\t', '\n', '\r', '\'', '"', '\\', '$', '`', '!', '(', ')']) {
+    if !input.contains([
+        ' ', '\t', '\n', '\r', '\'', '"', '\\', '$', '`', '!', '(', ')',
+    ]) {
         return input.to_string();
     }
     let escaped = input.replace('\'', r#"'"'"'"#);
@@ -238,8 +248,9 @@ fn normalize_harness_cmd(raw: &[String]) -> Result<Vec<String>> {
     if raw.len() == 1 {
         let single = raw[0].trim();
         if single.chars().any(char::is_whitespace) {
-            let parsed = shell_split(single)
-                .with_context(|| "failed to parse harness command string; try quoting individual args or use --")?;
+            let parsed = shell_split(single).with_context(
+                || "failed to parse harness command string; try quoting individual args or use --",
+            )?;
             if parsed.is_empty() {
                 bail!("harness command is empty");
             }
@@ -291,7 +302,8 @@ fn print_prompt_previews(prompts: &[String]) {
 }
 
 fn contains_item_token(args: &[String]) -> bool {
-    args.iter().any(|arg| ITEM_TOKENS.iter().any(|token| arg.contains(token)))
+    args.iter()
+        .any(|arg| ITEM_TOKENS.iter().any(|token| arg.contains(token)))
 }
 
 fn replace_item_token(arg: &str, prompt: &str) -> String {
@@ -338,7 +350,9 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
-    let status = Command::new(tmux).args(args).status()
+    let status = Command::new(tmux)
+        .args(args)
+        .status()
         .with_context(|| format!("failed to run {}", tmux))?;
     if !status.success() {
         bail!("tmux command failed: {}", tmux);
